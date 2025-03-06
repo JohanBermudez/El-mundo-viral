@@ -1,0 +1,384 @@
+---
+import Layout from '../layouts/Layout.astro';
+import Header from '../components/Header.astro';
+import Welcome from '../components/Welcome.astro';
+import FeaturedNews from '../components/FeaturedNews.astro';
+import CategoryFilter from '../components/CategoryFilter.astro';
+import ViewToggle from '../components/ViewToggle.astro';
+import NewsCard from '../components/NewsCard.astro';
+import Footer from '../components/Footer.astro';
+import { supabase } from '../lib/supabase';
+
+// Obtener artículo destacado
+const { data: featuredArticleData, error: featuredError } = await supabase
+  .from('articles')
+  .select(`
+    id,
+    titulo,
+    subtitulo,
+    extracto,
+    imagen_principal,
+    slug,
+    created_at,
+    article_categories (
+      categories (
+        nombre,
+        slug
+      )
+    )
+  `)
+  .eq('estado_publicacion', 'publicado')
+  .order('created_at', { ascending: false })
+  .limit(1)
+  .single();
+
+console.log("Featured article data:", featuredArticleData);
+console.log("Featured article error:", featuredError);
+
+// Formatear artículo destacado
+const featuredArticle = featuredArticleData ? {
+  title: featuredArticleData.titulo,
+  excerpt: featuredArticleData.extracto || featuredArticleData.subtitulo || '',
+  image: featuredArticleData.imagen_principal || 'https://via.placeholder.com/800x400',
+  category: featuredArticleData.article_categories?.[0]?.categories?.nombre || 'General',
+  categorySlug: featuredArticleData.article_categories?.[0]?.categories?.slug || 'general',
+  date: new Date(featuredArticleData.created_at).toLocaleDateString('es-ES', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric'
+  }),
+  url: `/articulo/${featuredArticleData.slug}`
+} : null;
+
+// Obtener últimos artículos
+const { data: latestArticlesData, error: articlesError } = await supabase
+  .from('articles')
+  .select(`
+    id,
+    titulo,
+    subtitulo,
+    extracto,
+    imagen_principal,
+    slug,
+    created_at,
+    article_categories (
+      categories (
+        nombre,
+        slug
+      )
+    )
+  `)
+  .eq('estado_publicacion', 'publicado')
+  .order('created_at', { ascending: false })
+  .limit(9);
+
+console.log("Latest articles data:", latestArticlesData);
+console.log("Latest articles error:", articlesError);
+
+// Formatear últimos artículos
+const latestArticles = (latestArticlesData || []).map(article => ({
+  title: article.titulo,
+  excerpt: article.extracto || article.subtitulo || '',
+  image: article.imagen_principal || 'https://via.placeholder.com/400x300',
+  category: article.article_categories?.[0]?.categories?.nombre || 'General',
+  categorySlug: article.article_categories?.[0]?.categories?.slug || 'general',
+  date: new Date(article.created_at).toLocaleDateString('es-ES', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric'
+  }),
+  url: `/articulo/${article.slug}`
+}));
+
+// Obtener categorías para el filtro
+const { data: categoriesData, error: categoriesError } = await supabase
+  .from('categories')
+  .select('nombre, slug')
+  .order('nombre');
+
+console.log("Categories data:", categoriesData);
+console.log("Categories error:", categoriesError);
+
+// SEO metadata
+const title = "El Mundo Viral - Noticias, Tendencias y Contenido Viral";
+const description = "Tu fuente de noticias virales y tendencias actuales. Mantente informado con las últimas noticias, subsidios y contenido viral.";
+---
+
+<Layout title={title} description={description}>
+  <Header />
+  
+  <main class="container mx-auto px-4 py-8">
+    <Welcome />
+    
+    {featuredArticle && (
+      <FeaturedNews
+        title={featuredArticle.title}
+        excerpt={featuredArticle.excerpt}
+        image={featuredArticle.image}
+        category={featuredArticle.category}
+        categorySlug={featuredArticle.categorySlug}
+        date={featuredArticle.date}
+        url={featuredArticle.url}
+      />
+    )}
+    
+    <div class="mt-12">
+      <h2 class="text-2xl font-bold mb-6">Últimas Noticias</h2>
+      
+      {categoriesData && categoriesData.length > 0 ? (
+        <div class="flex flex-wrap gap-2 mb-6">
+          <button 
+            class="category-filter bg-primary text-white px-3 py-1 rounded-full text-sm" 
+            data-category="todos"
+          >
+            Todos
+          </button>
+          
+          {categoriesData.map((category) => (
+            <button 
+              class="category-filter bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 px-3 py-1 rounded-full text-sm" 
+              data-category={category.slug}
+            >
+              {category.nombre}
+            </button>
+          ))}
+        </div>
+      ) : (
+        <CategoryFilter />
+      )}
+      
+      <ViewToggle />
+      
+      <div id="news-container" class="grid-view mt-6">
+        {latestArticles.length > 0 ? (
+          latestArticles.map((article) => (
+            <div data-category={article.categorySlug} class="article-item">
+              <NewsCard
+                title={article.title}
+                excerpt={article.excerpt}
+                image={article.image}
+                category={article.category}
+                date={article.date}
+                url={article.url}
+              />
+            </div>
+          ))
+        ) : (
+          <div class="text-center py-10 text-gray-500 col-span-full">
+            <p>No hay artículos disponibles en este momento.</p>
+          </div>
+        )}
+      </div>
+      
+      {latestArticles.length > 0 && (
+        <div class="mt-10 text-center">
+          <button id="load-more" class="bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 px-6 py-3 rounded-md shadow-sm text-sm font-medium focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary">
+            Cargar más noticias
+          </button>
+        </div>
+      )}
+    </div>
+  </main>
+  
+  <Footer />
+</Layout>
+
+<script>
+  // Filtro de categorías
+  const categoryFilters = document.querySelectorAll('.category-filter');
+  const newsItems = document.querySelectorAll('[data-category]');
+  
+  categoryFilters.forEach(filter => {
+    filter.addEventListener('click', () => {
+      // Actualizar clases de los botones
+      categoryFilters.forEach(btn => {
+        btn.classList.remove('bg-primary', 'text-white');
+        btn.classList.add('bg-white', 'border', 'border-gray-300', 'text-gray-700', 'hover:bg-gray-50');
+      });
+      
+      filter.classList.remove('bg-white', 'border', 'border-gray-300', 'text-gray-700', 'hover:bg-gray-50');
+      filter.classList.add('bg-primary', 'text-white');
+      
+      // Filtrar artículos
+      const selectedCategory = filter.getAttribute('data-category');
+      
+      newsItems.forEach(item => {
+        if (selectedCategory === 'todos' || item.getAttribute('data-category') === selectedCategory) {
+          item.classList.remove('hidden');
+        } else {
+          item.classList.add('hidden');
+        }
+      });
+    });
+  });
+  
+  // Cambio de vista
+  const gridViewBtn = document.getElementById('grid-view');
+  const listViewBtn = document.getElementById('list-view');
+  const newsContainer = document.getElementById('news-container');
+  
+  gridViewBtn?.addEventListener('click', () => {
+    newsContainer?.classList.remove('list-view');
+    newsContainer?.classList.add('grid-view');
+    gridViewBtn.classList.add('bg-primary', 'text-white');
+    gridViewBtn.classList.remove('bg-white', 'text-gray-700');
+    listViewBtn?.classList.remove('bg-primary', 'text-white');
+    listViewBtn?.classList.add('bg-white', 'text-gray-700');
+    
+    // Guardar preferencia
+    localStorage.setItem('viewPreference', 'grid');
+  });
+  
+  listViewBtn?.addEventListener('click', () => {
+    newsContainer?.classList.remove('grid-view');
+    newsContainer?.classList.add('list-view');
+    listViewBtn.classList.add('bg-primary', 'text-white');
+    listViewBtn.classList.remove('bg-white', 'text-gray-700');
+    gridViewBtn?.classList.remove('bg-primary', 'text-white');
+    gridViewBtn?.classList.add('bg-white', 'text-gray-700');
+    
+    // Guardar preferencia
+    localStorage.setItem('viewPreference', 'list');
+  });
+  
+  // Cargar preferencia guardada
+  document.addEventListener('DOMContentLoaded', () => {
+    const savedView = localStorage.getItem('viewPreference');
+    if (savedView === 'list') {
+      listViewBtn?.click();
+    }
+  });
+  
+  // Load more functionality
+  let currentPage = 1;
+  
+  document.getElementById('load-more')?.addEventListener('click', async () => {
+    currentPage++;
+    
+    try {
+      const response = await fetch(`/api/articles?page=${currentPage}`);
+      const articles = await response.json();
+      
+      if (articles.length === 0) {
+        const loadMoreBtn = document.getElementById('load-more');
+        if (loadMoreBtn) {
+          loadMoreBtn.textContent = 'No hay más artículos';
+          loadMoreBtn.setAttribute('disabled', 'true');
+          loadMoreBtn.classList.add('opacity-50', 'cursor-not-allowed');
+        }
+        return;
+      }
+      
+      const newsContainer = document.getElementById('news-container');
+      
+      articles.forEach(article => {
+        const articleElement = document.createElement('div');
+        articleElement.setAttribute('data-category', article.categorySlug);
+        articleElement.classList.add('article-item');
+        
+        articleElement.innerHTML = `
+          <article class="bg-white rounded-lg overflow-hidden shadow-md hover:shadow-lg transition-shadow duration-300 h-full">
+            <a href="${article.url}" class="block h-full flex flex-col">
+              <div class="relative">
+                <img 
+                  src="${article.image}" 
+                  alt="${article.title}" 
+                  class="w-full h-56 sm:h-64 object-cover"
+                  loading="lazy"
+                  onerror="this.src='https://via.placeholder.com/400x300'"
+                />
+                <span class="absolute top-3 left-3 bg-primary text-white text-xs font-semibold px-2 py-1 rounded">
+                  ${article.category}
+                </span>
+              </div>
+              
+              <div class="p-4 flex-grow flex flex-col">
+                <h3 class="text-lg font-bold mb-2 line-clamp-2">${article.title}</h3>
+                <p class="text-gray-600 text-sm mb-3 line-clamp-3 flex-grow">${article.excerpt}</p>
+                <div class="flex justify-between items-center text-xs text-gray-500 mt-auto">
+                  <span>${article.date}</span>
+                  <span class="font-medium text-primary">Leer más</span>
+                </div>
+              </div>
+            </a>
+          </article>
+        `;
+        
+        newsContainer?.appendChild(articleElement);
+      });
+      
+      // Re-apply current category filter
+      const activeFilter = document.querySelector('.category-filter.bg-primary');
+      if (activeFilter) {
+        const selectedCategory = activeFilter.getAttribute('data-category');
+        const newsItems = document.querySelectorAll('[data-category]');
+        
+        newsItems.forEach(item => {
+          if (selectedCategory === 'todos' || item.getAttribute('data-category') === selectedCategory) {
+            item.classList.remove('hidden');
+          } else {
+            item.classList.add('hidden');
+          }
+        });
+      }
+      
+    } catch (error) {
+      console.error('Error loading more articles:', error);
+    }
+  });
+</script>
+
+<style>
+  .grid-view {
+    display: grid;
+    grid-template-columns: repeat(1, 1fr);
+    gap: 1.5rem;
+  }
+  
+  @media (min-width: 640px) {
+    .grid-view {
+      grid-template-columns: repeat(2, 1fr);
+    }
+  }
+  
+  @media (min-width: 1024px) {
+    .grid-view {
+      grid-template-columns: repeat(3, 1fr);
+    }
+  }
+  
+  .list-view {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+  }
+  
+  .list-view .article-item article {
+    display: flex;
+    flex-direction: column;
+  }
+  
+  @media (min-width: 640px) {
+    .list-view .article-item article {
+      flex-direction: row;
+      height: 200px;
+    }
+    
+    .list-view .article-item article .relative {
+      width: 30%;
+      height: 100%;
+    }
+    
+    .list-view .article-item article .relative img {
+      height: 100%;
+    }
+    
+    .list-view .article-item article a {
+      flex-direction: row;
+    }
+    
+    .list-view .article-item article .p-4 {
+      width: 70%;
+    }
+  }
+</style>

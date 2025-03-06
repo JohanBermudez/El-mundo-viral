@@ -1,0 +1,196 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import { supabase, getSession } from '../../lib/supabase';
+
+// Verificar si hay una cookie de sesión activa
+const { data, error: sessionError } = await getSession();
+
+// Si hay una sesión activa, redirigir al panel de administración
+if (data.session) {
+  return Astro.redirect('/jjbb-admin');
+}
+
+// Para depuración
+console.log('Estado de autenticación en login.astro:', data.session ? 'Autenticado' : 'No autenticado');
+---
+
+<Layout title="Iniciar Sesión | Admin Panel">
+  <div class="min-h-screen bg-gray-100 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
+    <div class="sm:mx-auto sm:w-full sm:max-w-md">
+      <h2 class="mt-6 text-center text-3xl font-extrabold text-gray-900">
+        Panel de Administración
+      </h2>
+      <p class="mt-2 text-center text-sm text-gray-600">
+        Inicia sesión para gestionar el contenido
+      </p>
+    </div>
+
+    <div class="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
+      <div class="bg-white py-8 px-4 shadow sm:rounded-lg sm:px-10">
+        <form id="login-form" class="space-y-6">
+          <div>
+            <label for="email" class="block text-sm font-medium text-gray-700">
+              Correo electrónico
+            </label>
+            <div class="mt-1">
+              <input id="email" name="email" type="email" required
+                class="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label for="password" class="block text-sm font-medium text-gray-700">
+              Contraseña
+            </label>
+            <div class="mt-1">
+              <input id="password" name="password" type="password" required
+                class="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm"
+              />
+            </div>
+          </div>
+
+          <div>
+            <button type="submit"
+              class="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary"
+            >
+              Iniciar sesión
+            </button>
+          </div>
+        </form>
+
+        <div id="error-message" class="mt-4 text-sm text-red-600 hidden"></div>
+        <div id="success-message" class="mt-4 text-sm text-green-600 hidden"></div>
+        
+        <!-- For development purposes only -->
+        <div class="mt-6 pt-4 border-t border-gray-200">
+          <h3 class="text-sm font-medium text-gray-700 mb-2">Crear cuenta de administrador</h3>
+          <form id="signup-form" class="space-y-4">
+            <div>
+              <input id="signup-email" name="email" type="email" placeholder="Correo electrónico" required
+                class="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm"
+              />
+            </div>
+            <div>
+              <input id="signup-password" name="password" type="password" placeholder="Contraseña" required
+                class="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm"
+              />
+            </div>
+            <button type="submit"
+              class="w-full flex justify-center py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary"
+            >
+              Crear cuenta
+            </button>
+          </form>
+          <div id="signup-message" class="mt-2 text-sm text-green-600 hidden"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</Layout>
+
+<script>
+  import { signIn, createUser, clientAuth } from '../../lib/supabase';
+  
+  // Intentar restaurar sesión al cargar la página
+  window.addEventListener('DOMContentLoaded', async () => {
+    try {
+      const restored = await clientAuth.restoreSession();
+      if (restored) {
+        console.log('Sesión restaurada desde localStorage, redirigiendo...');
+        window.location.href = '/jjbb-admin';
+      }
+    } catch (error) {
+      console.error('Error al restaurar sesión:', error);
+    }
+  });
+  
+  // Login form
+  const loginForm = document.getElementById('login-form');
+  const errorMessage = document.getElementById('error-message');
+  const successMessage = document.getElementById('success-message');
+  
+  loginForm?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    
+    if (errorMessage) errorMessage.classList.add('hidden');
+    if (successMessage) successMessage.classList.add('hidden');
+    
+    const formData = new FormData(e.target as HTMLFormElement);
+    const email = formData.get('email') as string;
+    const password = formData.get('password') as string;
+    
+    try {
+      console.log('Enviando solicitud de inicio de sesión...');
+      const { data, error } = await signIn(email, password);
+      
+      if (error) {
+        console.error('Error de autenticación:', error);
+        throw error;
+      }
+      
+      if (data.session) {
+        console.log('Inicio de sesión exitoso, redirigiendo...');
+        
+        // Guardar sesión completa en localStorage para persistencia
+        clientAuth.saveSession(data.session);
+        
+        if (successMessage) {
+          successMessage.textContent = 'Inicio de sesión exitoso. Redirigiendo...';
+          successMessage.classList.remove('hidden');
+        }
+        
+        // Pequeño retraso para asegurar que la sesión se establezca correctamente
+        setTimeout(() => {
+          window.location.href = '/jjbb-admin';
+        }, 1000);
+      } else {
+        throw new Error('No se pudo establecer la sesión');
+      }
+    } catch (error: any) {
+      console.error('Error completo:', error);
+      
+      if (errorMessage) {
+        errorMessage.textContent = error.message || 'Error al iniciar sesión';
+        errorMessage.classList.remove('hidden');
+      }
+    }
+  });
+  
+  // Signup form (for development purposes)
+  const signupForm = document.getElementById('signup-form');
+  const signupMessage = document.getElementById('signup-message');
+  
+  signupForm?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    
+    const formData = new FormData(e.target as HTMLFormElement);
+    const email = formData.get('email') as string;
+    const password = formData.get('password') as string;
+    
+    try {
+      const { data, error } = await createUser(email, password);
+      
+      if (error) throw error;
+      
+      if (signupMessage) {
+        signupMessage.textContent = 'Cuenta creada correctamente. Ya puedes iniciar sesión.';
+        signupMessage.classList.remove('hidden');
+        signupMessage.classList.add('text-green-600');
+        signupMessage.classList.remove('text-red-600');
+      }
+      
+      // Clear form
+      (document.getElementById('signup-email') as HTMLInputElement).value = '';
+      (document.getElementById('signup-password') as HTMLInputElement).value = '';
+    } catch (error: any) {
+      if (signupMessage) {
+        signupMessage.textContent = error.message || 'Error al crear la cuenta';
+        signupMessage.classList.remove('hidden');
+        signupMessage.classList.remove('text-green-600');
+        signupMessage.classList.add('text-red-600');
+      }
+      console.error('Error de registro:', error);
+    }
+  });
+</script>

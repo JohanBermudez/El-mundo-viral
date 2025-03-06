@@ -1,0 +1,201 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import Header from '../../components/Header.astro';
+import NewsCard from '../../components/NewsCard.astro';
+import ViewToggle from '../../components/ViewToggle.astro';
+import Footer from '../../components/Footer.astro';
+import { supabase } from '../../lib/supabase';
+
+// Obtener el slug de la categoría de los parámetros
+const { slug } = Astro.params;
+
+// Obtener información de la categoría
+const { data: categoryData } = await supabase
+  .from('categories')
+  .select('*')
+  .eq('slug', slug)
+  .single() || { data: null };
+
+// Si no se encuentra la categoría, redirigir a la página de inicio
+if (!categoryData) {
+  return Astro.redirect('/');
+}
+
+// Obtener artículos de esta categoría
+const { data: articlesData } = await supabase
+  .from('articles')
+  .select(`
+    id,
+    titulo,
+    subtitulo,
+    extracto,
+    imagen_principal,
+    slug,
+    created_at,
+    article_categories!inner (
+      categories (
+        id,
+        nombre,
+        slug
+      )
+    )
+  `)
+  .eq('estado_publicacion', 'publicado')
+  .eq('article_categories.categories.slug', slug)
+  .order('created_at', { ascending: false }) || { data: [] };
+
+// Formatear artículos
+const articles = (articlesData || []).map(article => ({
+  title: article.titulo,
+  excerpt: article.extracto || article.subtitulo || '',
+  image: article.imagen_principal || 'https://via.placeholder.com/400x300',
+  category: article.article_categories?.[0]?.categories?.nombre || categoryData.nombre,
+  categorySlug: article.article_categories?.[0]?.categories?.slug || slug,
+  date: new Date(article.created_at).toLocaleDateString('es-ES', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric'
+  }),
+  url: `/articulo/${article.slug}`
+}));
+
+// SEO metadata
+const title = `${categoryData.nombre} - El Mundo Viral`;
+const description = `Noticias y artículos sobre ${categoryData.nombre.toLowerCase()} en El Mundo Viral. Mantente informado con las últimas tendencias.`;
+---
+
+<Layout title={title} description={description}>
+  <Header />
+  
+  <main class="container mx-auto px-4 py-8">
+    <div class="mb-6">
+      <a href="/" class="text-primary hover:underline">&larr; Volver a inicio</a>
+    </div>
+    
+    <div class="mb-8">
+      <h1 class="text-3xl font-bold text-gray-900">{categoryData.nombre}</h1>
+      {categoryData.descripcion && (
+        <p class="text-gray-600 mt-2">{categoryData.descripcion}</p>
+      )}
+    </div>
+    
+    <ViewToggle />
+    
+    <div id="news-container" class="grid-view mt-6">
+      {articles.length > 0 ? (
+        articles.map((article) => (
+          <div class="article-item">
+            <NewsCard
+              title={article.title}
+              excerpt={article.excerpt}
+              image={article.image}
+              category={article.category}
+              date={article.date}
+              url={article.url}
+            />
+          </div>
+        ))
+      ) : (
+        <div class="text-center py-10 text-gray-500 col-span-full">
+          <p>No hay artículos disponibles en esta categoría.</p>
+        </div>
+      )}
+    </div>
+  </main>
+  
+  <Footer />
+</Layout>
+
+<script>
+  // Cambio de vista
+  const gridViewBtn = document.getElementById('grid-view');
+  const listViewBtn = document.getElementById('list-view');
+  const newsContainer = document.getElementById('news-container');
+  
+  gridViewBtn?.addEventListener('click', () => {
+    newsContainer?.classList.remove('list-view');
+    newsContainer?.classList.add('grid-view');
+    gridViewBtn.classList.add('bg-primary', 'text-white');
+    gridViewBtn.classList.remove('bg-white', 'text-gray-700');
+    listViewBtn?.classList.remove('bg-primary', 'text-white');
+    listViewBtn?.classList.add('bg-white', 'text-gray-700');
+    
+    // Guardar preferencia
+    localStorage.setItem('viewPreference', 'grid');
+  });
+  
+  listViewBtn?.addEventListener('click', () => {
+    newsContainer?.classList.remove('grid-view');
+    newsContainer?.classList.add('list-view');
+    listViewBtn.classList.add('bg-primary', 'text-white');
+    listViewBtn.classList.remove('bg-white', 'text-gray-700');
+    gridViewBtn?.classList.remove('bg-primary', 'text-white');
+    gridViewBtn?.classList.add('bg-white', 'text-gray-700');
+    
+    // Guardar preferencia
+    localStorage.setItem('viewPreference', 'list');
+  });
+  
+  // Cargar preferencia guardada
+  document.addEventListener('DOMContentLoaded', () => {
+    const savedView = localStorage.getItem('viewPreference');
+    if (savedView === 'list') {
+      listViewBtn?.click();
+    }
+  });
+</script>
+
+<style>
+  .grid-view {
+    display: grid;
+    grid-template-columns: repeat(1, 1fr);
+    gap: 1.5rem;
+  }
+  
+  @media (min-width: 640px) {
+    .grid-view {
+      grid-template-columns: repeat(2, 1fr);
+    }
+  }
+  
+  @media (min-width: 1024px) {
+    .grid-view {
+      grid-template-columns: repeat(3, 1fr);
+    }
+  }
+  
+  .list-view {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+  }
+  
+  .list-view .article-item article {
+    display: flex;
+    flex-direction: column;
+  }
+  
+  @media (min-width: 640px) {
+    .list-view .article-item article {
+      flex-direction: row;
+      height: 200px;
+    }
+    
+    .list-view .article-item article .relative {
+      width: 30%;
+      height: 100%;
+    }
+    
+    .list-view .article-item article .relative img {
+      height: 100%;
+    }
+    
+    .list-view .article-item article a {
+      flex-direction: row;
+    }
+    
+    .list-view .article-item article .p-4 {
+      width: 70%;
+    }
+  }
+</style>

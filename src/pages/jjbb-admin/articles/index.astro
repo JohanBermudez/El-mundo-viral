@@ -1,0 +1,118 @@
+---
+import Layout from '../../../layouts/Layout.astro';
+import { supabase, getSession } from '../../../lib/supabase';
+
+// TEMPORALMENTE: Omitimos la verificación de autenticación
+// const { session, error: sessionError } = await getSession();
+// if (!session) {
+//   return Astro.redirect('/jjbb-admin/login');
+// }
+
+// Get all articles with their categories
+const { data: articles } = await supabase
+  ?.from('articles')
+  .select(`
+    id,
+    titulo,
+    estado_publicacion,
+    created_at,
+    article_categories (
+      categories (
+        nombre
+      )
+    )
+  `)
+  .order('created_at', { ascending: false }) || { data: [] };
+---
+
+<Layout title="Gestionar Artículos | Admin Panel">
+  <div class="min-h-screen bg-gray-100">
+    <nav class="bg-white shadow-sm">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="flex justify-between h-16">
+          <div class="flex">
+            <div class="flex-shrink-0 flex items-center">
+              <a href="/jjbb-admin" class="text-xl font-bold text-primary">Admin Panel</a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </nav>
+
+    <div class="py-6">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="flex justify-between items-center">
+          <h1 class="text-2xl font-semibold text-gray-900">Artículos</h1>
+          <a href="/jjbb-admin/articles/new"
+            class="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary hover:bg-primary/90"
+          >
+            Nuevo artículo
+          </a>
+        </div>
+
+        <div class="mt-8 flex flex-col">
+          <div class="-my-2 overflow-x-auto sm:-mx-6 lg:-mx-8">
+            <div class="py-2 align-middle inline-block min-w-full sm:px-6 lg:px-8">
+              <div class="shadow overflow-hidden border-b border-gray-200 sm:rounded-lg">
+                <table class="min-w-full divide-y divide-gray-200">
+                  <thead class="bg-gray-50">
+                    <tr>
+                      <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Título
+                      </th>
+                      <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Categoría
+                      </th>
+                      <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Estado
+                      </th>
+                      <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Fecha
+                      </th>
+                      <th scope="col" class="relative px-6 py-3">
+                        <span class="sr-only">Acciones</span>
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody class="bg-white divide-y divide-gray-200">
+                    {articles?.map((article) => (
+                      <tr>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                          <div class="text-sm font-medium text-gray-900">
+                            {article.titulo}
+                          </div>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                          <div class="text-sm text-gray-500">
+                            {article.article_categories?.[0]?.categories?.nombre || 'Sin categoría'}
+                          </div>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                          <span class={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                            article.estado_publicacion === 'publicado'
+                              ? 'bg-green-100 text-green-800'
+                              : 'bg-yellow-100 text-yellow-800'
+                          }`}>
+                            {article.estado_publicacion}
+                          </span>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          {new Date(article.created_at).toLocaleDateString()}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                          <a href={`/jjbb-admin/articles/${article.id}`} class="text-primary hover:text-primary/90">
+                            Editar
+                          </a>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</Layout>

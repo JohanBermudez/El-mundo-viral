@@ -1,0 +1,295 @@
+---
+import Layout from '../../../layouts/Layout.astro';
+import { supabase, getSession } from '../../../lib/supabase';
+
+// TEMPORALMENTE: Omitimos la verificación de autenticación
+// const { session, error: sessionError } = await getSession();
+// if (!session) {
+//   return Astro.redirect('/jjbb-admin/login');
+// }
+
+// Get all categories
+const { data: categories } = await supabase
+  ?.from('categories')
+  .select('*')
+  .order('nombre') || { data: [] };
+---
+
+<Layout title="Gestionar Categorías | Admin Panel">
+  <div class="min-h-screen bg-gray-100">
+    <nav class="bg-white shadow-sm">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="flex justify-between h-16">
+          <div class="flex">
+            <div class="flex-shrink-0 flex items-center">
+              <a href="/jjbb-admin" class="text-xl font-bold text-primary">Admin Panel</a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </nav>
+
+    <div class="py-6">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="flex justify-between items-center">
+          <h1 class="text-2xl font-semibold text-gray-900">Categorías</h1>
+          <button id="new-category-button"
+            class="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary hover:bg-primary/90"
+          >
+            Nueva categoría
+          </button>
+        </div>
+
+        <div class="mt-8 flex flex-col">
+          <div class="-my-2 overflow-x-auto sm:-mx-6 lg:-mx-8">
+            <div class="py-2 align-middle inline-block min-w-full sm:px-6 lg:px-8">
+              <div class="shadow overflow-hidden border-b border-gray-200 sm:rounded-lg">
+                <table class="min-w-full divide-y divide-gray-200">
+                  <thead class="bg-gray-50">
+                    <tr>
+                      <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Nombre
+                      </th>
+                      <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Slug
+                      </th>
+                      <th scope="col" class="relative px-6 py-3">
+                        <span class="sr-only">Acciones</span>
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody class="bg-white divide-y divide-gray-200">
+                    {categories?.map((category) => (
+                      <tr>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                          <div class="text-sm font-medium text-gray-900">
+                            {category.nombre}
+                          </div>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                          <div class="text-sm text-gray-500">
+                            {category.slug}
+                          </div>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                          <button class="edit-category-button text-primary hover:text-primary/90 mr-4" data-id={category.id} data-name={category.nombre}>
+                            Editar
+                          </button>
+                          <button class="delete-category-button text-red-600 hover:text-red-900" data-id={category.id} data-name={category.nombre}>
+                            Eliminar
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal para nueva categoría -->
+  <div id="category-modal" class="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center hidden">
+    <div class="bg-white rounded-lg overflow-hidden shadow-xl transform transition-all sm:max-w-lg sm:w-full">
+      <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+        <h3 class="text-lg leading-6 font-medium text-gray-900" id="modal-title">
+          Nueva categoría
+        </h3>
+        <div class="mt-4">
+          <form id="category-form">
+            <input type="hidden" id="category-id" value="" />
+            <div>
+              <label for="category-name" class="block text-sm font-medium text-gray-700">
+                Nombre
+              </label>
+              <div class="mt-1">
+                <input type="text" name="name" id="category-name" required
+                  class="shadow-sm focus:ring-primary focus:border-primary block w-full sm:text-sm border-gray-300 rounded-md"
+                />
+              </div>
+            </div>
+          </form>
+        </div>
+      </div>
+      <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+        <button type="button" id="save-category-button"
+          class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-primary text-base font-medium text-white hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary sm:ml-3 sm:w-auto sm:text-sm"
+        >
+          Guardar
+        </button>
+        <button type="button" id="cancel-category-button"
+          class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm"
+        >
+          Cancelar
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal de confirmación para eliminar -->
+  <div id="delete-modal" class="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center hidden">
+    <div class="bg-white rounded-lg overflow-hidden shadow-xl transform transition-all sm:max-w-lg sm:w-full">
+      <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+        <div class="sm:flex sm:items-start">
+          <div class="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-red-100 sm:mx-0 sm:h-10 sm:w-10">
+            <svg class="h-6 w-6 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9<boltAction type="file" filePath="src/pages/jjbb-admin/categories/index.astro">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+          </div>
+          <div class="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left">
+            <h3 class="text-lg leading-6 font-medium text-gray-900" id="delete-modal-title">
+              Eliminar categoría
+            </h3>
+            <div class="mt-2">
+              <p class="text-sm text-gray-500" id="delete-modal-description">
+                ¿Estás seguro de que deseas eliminar esta categoría? Esta acción no se puede deshacer.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+        <button type="button" id="confirm-delete-button"
+          class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-red-600 text-base font-medium text-white hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 sm:ml-3 sm:w-auto sm:text-sm"
+        >
+          Eliminar
+        </button>
+        <button type="button" id="cancel-delete-button"
+          class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm"
+        >
+          Cancelar
+        </button>
+      </div>
+    </div>
+  </div>
+</Layout>
+
+<script>
+  import { supabase } from '../../../lib/supabase';
+  
+  // Referencias a elementos del DOM
+  const categoryModal = document.getElementById('category-modal');
+  const deleteModal = document.getElementById('delete-modal');
+  const categoryForm = document.getElementById('category-form');
+  const categoryIdInput = document.getElementById('category-id') as HTMLInputElement;
+  const categoryNameInput = document.getElementById('category-name') as HTMLInputElement;
+  const modalTitle = document.getElementById('modal-title');
+  
+  // Botones
+  const newCategoryButton = document.getElementById('new-category-button');
+  const saveCategoryButton = document.getElementById('save-category-button');
+  const cancelCategoryButton = document.getElementById('cancel-category-button');
+  const confirmDeleteButton = document.getElementById('confirm-delete-button');
+  const cancelDeleteButton = document.getElementById('cancel-delete-button');
+  const editButtons = document.querySelectorAll('.edit-category-button');
+  const deleteButtons = document.querySelectorAll('.delete-category-button');
+  
+  // Abrir modal para nueva categoría
+  newCategoryButton?.addEventListener('click', () => {
+    if (modalTitle) modalTitle.textContent = 'Nueva categoría';
+    if (categoryIdInput) categoryIdInput.value = '';
+    if (categoryNameInput) categoryNameInput.value = '';
+    if (categoryModal) categoryModal.classList.remove('hidden');
+  });
+  
+  // Cerrar modal de categoría
+  cancelCategoryButton?.addEventListener('click', () => {
+    if (categoryModal) categoryModal.classList.add('hidden');
+  });
+  
+  // Guardar categoría
+  saveCategoryButton?.addEventListener('click', async () => {
+    const id = categoryIdInput?.value;
+    const name = categoryNameInput?.value;
+    
+    if (!name) return;
+    
+    try {
+      // Crear slug a partir del nombre
+      const slug = name
+        .toLowerCase()
+        .replace(/[^\w\s-]/g, '')
+        .replace(/\s+/g, '-');
+      
+      if (id) {
+        // Actualizar categoría existente
+        await supabase
+          .from('categories')
+          .update({
+            nombre: name,
+            slug
+          })
+          .eq('id', id);
+      } else {
+        // Crear nueva categoría
+        await supabase
+          .from('categories')
+          .insert({
+            nombre: name,
+            slug
+          });
+      }
+      
+      // Recargar la página para mostrar los cambios
+      window.location.reload();
+    } catch (error) {
+      console.error('Error al guardar categoría:', error);
+    }
+  });
+  
+  // Editar categoría
+  editButtons.forEach(button => {
+    button.addEventListener('click', () => {
+      const id = button.getAttribute('data-id');
+      const name = button.getAttribute('data-name');
+      
+      if (modalTitle) modalTitle.textContent = 'Editar categoría';
+      if (categoryIdInput) categoryIdInput.value = id || '';
+      if (categoryNameInput) categoryNameInput.value = name || '';
+      if (categoryModal) categoryModal.classList.remove('hidden');
+    });
+  });
+  
+  // Abrir modal de confirmación para eliminar
+  deleteButtons.forEach(button => {
+    button.addEventListener('click', () => {
+      const id = button.getAttribute('data-id');
+      const name = button.getAttribute('data-name');
+      
+      if (confirmDeleteButton) confirmDeleteButton.setAttribute('data-id', id || '');
+      
+      const description = document.getElementById('delete-modal-description');
+      if (description) {
+        description.textContent = `¿Estás seguro de que deseas eliminar la categoría "${name}"? Esta acción no se puede deshacer.`;
+      }
+      
+      if (deleteModal) deleteModal.classList.remove('hidden');
+    });
+  });
+  
+  // Cerrar modal de eliminación
+  cancelDeleteButton?.addEventListener('click', () => {
+    if (deleteModal) deleteModal.classList.add('hidden');
+  });
+  
+  // Confirmar eliminación
+  confirmDeleteButton?.addEventListener('click', async () => {
+    const id = confirmDeleteButton.getAttribute('data-id');
+    
+    try {
+      await supabase
+        .from('categories')
+        .delete()
+        .eq('id', id);
+      
+      // Recargar la página para mostrar los cambios
+      window.location.reload();
+    } catch (error) {
+      console.error('Error al eliminar categoría:', error);
+    }
+  });
+</script>

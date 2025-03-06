@@ -1,0 +1,26 @@
+---
+import Layout from '../layouts/Layout.astro';
+import Header from '../components/Header.astro';
+import Footer from '../components/Footer.astro';
+
+// SEO metadata
+const title = "Página no encontrada - El Mundo Viral";
+const description = "Lo sentimos, la página que estás buscando no existe o ha sido movida.";
+---
+
+<Layout title={title} description={description}>
+  <Header />
+  
+  <main class="container mx-auto px-4 py-12">
+    <div class="max-w-2xl mx-auto text-center">
+      <h1 class="text-6xl font-bold text-primary mb-4">404</h1>
+      <h2 class="text-3xl font-bold mb-6">Página no encontrada</h2>
+      <p class="text-lg text-gray-600 mb-8">Lo sentimos, la página que estás buscando no existe o ha sido movida.</p>
+      <a href="/" class="inline-block bg-primary hover:bg-primary/90 text-white font-medium py-3 px-6 rounded-full transition-colors">
+        Volver al inicio
+      </a>
+    </div>
+  </main>
+  
+  <Footer />
+</Layout>

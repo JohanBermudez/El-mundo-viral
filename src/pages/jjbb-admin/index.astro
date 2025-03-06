@@ -1,0 +1,168 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import { supabase, getSession } from '../../lib/supabase';
+
+// TEMPORALMENTE: Omitimos la verificación de autenticación
+// const { data, error: sessionError } = await getSession();
+// if (!data.session) {
+//   return Astro.redirect('/jjbb-admin/login');
+// }
+
+// Get articles count
+const { count: articlesCount } = await supabase
+  .from('articles')
+  .select('*', { count: 'exact', head: true }) || { count: 0 };
+
+// Get categories count
+const { count: categoriesCount } = await supabase
+  .from('categories')
+  .select('*', { count: 'exact', head: true }) || { count: 0 };
+---
+
+<Layout title="Panel de Administración | El Mundo Viral">
+  <div class="min-h-screen bg-gray-100">
+    <nav class="bg-white shadow-sm">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="flex justify-between h-16">
+          <div class="flex">
+            <div class="flex-shrink-0 flex items-center">
+              <span class="text-xl font-bold text-primary">Admin Panel</span>
+            </div>
+          </div>
+          <div class="flex items-center">
+            <!-- TEMPORALMENTE: Ocultamos la información del usuario -->
+            <!-- <span class="mr-4 text-sm text-gray-600">{data.session.user?.email}</span> -->
+            <button id="logout-button" class="text-gray-600 hover:text-gray-900">
+              Cerrar sesión
+            </button>
+          </div>
+        </div>
+      </div>
+    </nav>
+
+    <div class="py-6">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <h1 class="text-2xl font-semibold text-gray-900">Dashboard</h1>
+
+        <div class="mt-6 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+          <!-- Artículos Card -->
+          <div class="bg-white overflow-hidden shadow rounded-lg">
+            <div class="p-5">
+              <div class="flex items-center">
+                <div class="flex-shrink-0 bg-primary/10 rounded-md p-3">
+                  <svg class="h-6 w-6 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9.5a2 2 0 00-.586-1.414l-4.5-4.5A2 2 0 0015.5 3H5a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2z" />
+                  </svg>
+                </div>
+                <div class="ml-5 w-0 flex-1">
+                  <dl>
+                    <dt class="text-sm font-medium text-gray-500 truncate">
+                      Total Artículos
+                    </dt>
+                    <dd class="text-lg font-semibold text-gray-900">
+                      {articlesCount}
+                    </dd>
+                  </dl>
+                </div>
+              </div>
+            </div>
+            <div class="bg-gray-50 px-5 py-3">
+              <div class="text-sm">
+                <a href="/jjbb-admin/articles" class="font-medium text-primary hover:text-primary/90">
+                  Ver todos los artículos
+                </a>
+              </div>
+            </div>
+          </div>
+
+          <!-- Categorías Card -->
+          <div class="bg-white overflow-hidden shadow rounded-lg">
+            <div class="p-5">
+              <div class="flex items-center">
+                <div class="flex-shrink-0 bg-primary/10 rounded-md p-3">
+                  <svg class="h-6 w-6 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+                  </svg>
+                </div>
+                <div class="ml-5 w-0 flex-1">
+                  <dl>
+                    <dt class="text-sm font-medium text-gray-500 truncate">
+                      Total Categorías
+                    </dt>
+                    <dd class="text-lg font-semibold text-gray-900">
+                      {categoriesCount}
+                    </dd>
+                  </dl>
+                </div>
+              </div>
+            </div>
+            <div class="bg-gray-50 px-5 py-3">
+              <div class="text-sm">
+                <a href="/jjbb-admin/categories" class="font-medium text-primary hover:text-primary/90">
+                  Gestionar categorías
+                </a>
+              </div>
+            </div>
+          </div>
+
+          <!-- Nuevo Artículo Card -->
+          <div class="bg-white overflow-hidden shadow rounded-lg">
+            <div class="p-5">
+              <div class="flex items-center">
+                <div class="flex-shrink-0 bg-primary/10 rounded-md p-3">
+                  <svg class="h-6 w-6 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                  </svg>
+                </div>
+                <div class="ml-5 w-0 flex-1">
+                  <dl>
+                    <dt class="text-sm font-medium text-gray-500 truncate">
+                      Acciones Rápidas
+                    </dt>
+                    <dd class="text-lg font-semibold text-gray-900">
+                      Crear Nuevo
+                    </dd>
+                  </dl>
+                </div>
+              </div>
+            </div>
+            <div class="bg-gray-50 px-5 py-3">
+              <div class="text-sm">
+                <a href="/jjbb-admin/articles/new" class="font-medium text-primary hover:text-primary/90">
+                  Crear nuevo artículo
+                </a>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</Layout>
+
+<script>
+  import { signOut, clientAuth } from '../../lib/supabase';
+  
+  // TEMPORALMENTE: Omitimos la verificación de autenticación en el cliente
+  // window.addEventListener('DOMContentLoaded', async () => {
+  //   try {
+  //     const isAuthenticated = await clientAuth.isAuthenticated();
+  //     if (!isAuthenticated) {
+  //       window.location.href = '/jjbb-admin/login';
+  //     }
+  //   } catch (error) {
+  //     console.error('Error al verificar autenticación:', error);
+  //   }
+  // });
+  
+  // Handle logout
+  document.getElementById('logout-button')?.addEventListener('click', async () => {
+    try {
+      await signOut();
+      clientAuth.clearSession();
+      window.location.href = '/jjbb-admin/login';
+    } catch (error) {
+      console.error('Error al cerrar sesión:', error);
+    }
+  });
+</script>

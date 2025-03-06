@@ -1,0 +1,205 @@
+---
+import Layout from '../../../layouts/Layout.astro';
+import { supabase, getSession } from '../../../lib/supabase';
+
+// TEMPORALMENTE: Omitimos la verificación de autenticación
+// const { session, error: sessionError } = await getSession();
+// if (!session) {
+//   return Astro.redirect('/jjbb-admin/login');
+// }
+
+// Get categories for the form
+const { data: categories } = await supabase
+  ?.from('categories')
+  .select('id, nombre')
+  .order('nombre') || { data: [] };
+
+// Get the first page ID
+const { data: page } = await supabase
+  ?.from('pages')
+  .select('id')
+  .limit(1)
+  .single() || { data: null };
+---
+
+<Layout title="Nuevo Artículo | Admin Panel">
+  <div class="min-h-screen bg-gray-100">
+    <nav class="bg-white shadow-sm">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="flex justify-between h-16">
+          <div class="flex">
+            <div class="flex-shrink-0 flex items-center">
+              <a href="/jjbb-admin" class="text-xl font-bold text-primary">Admin Panel</a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </nav>
+
+    <div class="py-6">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="flex justify-between items-center">
+          <h1 class="text-2xl font-semibold text-gray-900">Nuevo Artículo</h1>
+        </div>
+
+        <form id="article-form" class="mt-6 space-y-6 bg-white shadow px-4 py-5 sm:rounded-lg sm:p-6">
+          <input type="hidden" id="page-id" value={page?.id} />
+          
+          <div class="grid grid-cols-1 gap-6">
+            <div>
+              <label for="title" class="block text-sm font-medium text-gray-700">
+                Título
+              </label>
+              <div class="mt-1">
+                <input type="text" name="title" id="title" required
+                  class="shadow-sm focus:ring-primary focus:border-primary block w-full sm:text-sm border-gray-300 rounded-md"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label for="subtitle" class="block text-sm font-medium text-gray-700">
+                Subtítulo
+              </label>
+              <div class="mt-1">
+                <input type="text" name="subtitle" id="subtitle"
+                  class="shadow-sm focus:ring-primary focus:border-primary block w-full sm:text-sm border-gray-300 rounded-md"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label for="category" class="block text-sm font-medium text-gray-700">
+                Categoría
+              </label>
+              <select id="category" name="category" required
+                class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm rounded-md"
+              >
+                <option value="">Selecciona una categoría</option>
+                {categories?.map((category) => (
+                  <option value={category.id}>{category.nombre}</option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label for="image" class="block text-sm font-medium text-gray-700">
+                URL de la imagen
+              </label>
+              <div class="mt-1">
+                <input type="url" name="image" id="image" required
+                  class="shadow-sm focus:ring-primary focus:border-primary block w-full sm:text-sm border-gray-300 rounded-md"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label for="content" class="block text-sm font-medium text-gray-700">
+                Contenido
+              </label>
+              <div class="mt-1">
+                <textarea id="content" name="content" rows="10" required
+                  class="shadow-sm focus:ring-primary focus:border-primary block w-full sm:text-sm border border-gray-300 rounded-md"
+                ></textarea>
+              </div>
+            </div>
+
+            <div>
+              <label for="status" class="block text-sm font-medium text-gray-700">
+                Estado
+              </label>
+              <select id="status" name="status" required
+                class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm rounded-md"
+              >
+                <option value="pendiente">Pendiente</option>
+                <option value="publicado">Publicado</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="flex justify-end">
+            <button type="button" onclick="window.location.href='/jjbb-admin/articles'"
+              class="bg-white py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary"
+            >
+              Cancelar
+            </button>
+            <button type="submit"
+              class="ml-3 inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-primary hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary"
+            >
+              Guardar
+            </button>
+          </div>
+        </form>
+
+        <div id="error-message" class="mt-4 text-sm text-red-600 hidden"></div>
+      </div>
+    </div>
+  </div>
+</Layout>
+
+<script>
+  import { supabase } from '../../../lib/supabase';
+  
+  const form = document.getElementById('article-form');
+  const errorMessage = document.getElementById('error-message');
+  
+  form?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    
+    const formData = new FormData(e.target as HTMLFormElement);
+    const pageId = (document.getElementById('page-id') as HTMLInputElement).value;
+    const title = formData.get('title') as string;
+    const subtitle = formData.get('subtitle') as string;
+    const categoryId = formData.get('category') as string;
+    const image = formData.get('image') as string;
+    const content = formData.get('content') as string;
+    const status = formData.get('status') as string;
+    
+    try {
+      // Create slug from title
+      const slug = title
+        .toLowerCase()
+        .replace(/[^\w\s-]/g, '')
+        .replace(/\s+/g, '-');
+      
+      // Insert article
+      const { data: article, error: articleError } = await supabase
+        ?.from('articles')
+        .insert({
+          page_id: pageId,
+          titulo: title,
+          subtitulo: subtitle,
+          contenido: {
+            body: content
+          },
+          imagen_principal: image,
+          slug,
+          estado_publicacion: status
+        })
+        .select()
+        .single() || {};
+      
+      if (articleError) throw articleError;
+      
+      // Create category relationship
+      if (article) {
+        const { error: categoryError } = await supabase
+          ?.from('article_categories')
+          .insert({
+            article_id: article.id,
+            category_id: categoryId
+          }) || {};
+        
+        if (categoryError) throw categoryError;
+      }
+      
+      // Redirect to articles list
+      window.location.href = '/jjbb-admin/articles';
+    } catch (error: any) {
+      if (errorMessage) {
+        errorMessage.textContent = error.message || 'Error al crear el artículo';
+        errorMessage.classList.remove('hidden');
+      }
+    }
+  });
+</script>

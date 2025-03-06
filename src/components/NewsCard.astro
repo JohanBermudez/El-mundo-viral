@@ -1,0 +1,38 @@
+---
+export interface Props {
+  title: string;
+  excerpt: string;
+  image: string;
+  category: string;
+  date: string;
+  url: string;
+}
+
+const { title, excerpt, image, category, date, url } = Astro.props;
+---
+
+<article class="bg-white rounded-lg overflow-hidden shadow-md hover:shadow-lg transition-shadow duration-300 h-full">
+  <a href={url} class="block h-full flex flex-col">
+    <div class="relative">
+      <img 
+        src={image || 'https://via.placeholder.com/400x300'} 
+        alt={title} 
+        class="w-full h-56 sm:h-64 object-cover"
+        loading="lazy"
+        onerror="this.src='https://via.placeholder.com/400x300'"
+      />
+      <span class="absolute top-3 left-3 bg-primary text-white text-xs font-semibold px-2 py-1 rounded">
+        {category}
+      </span>
+    </div>
+    
+    <div class="p-4 flex-grow flex flex-col">
+      <h3 class="text-lg font-bold mb-2 line-clamp-2">{title}</h3>
+      <p class="text-gray-600 text-sm mb-3 line-clamp-3 flex-grow">{excerpt}</p>
+      <div class="flex justify-between items-center text-xs text-gray-500 mt-auto">
+        <span>{date}</span>
+        <span class="font-medium text-primary">Leer más</span>
+      </div>
+    </div>
+  </a>
+</article>
